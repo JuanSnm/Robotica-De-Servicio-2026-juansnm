@@ -11,6 +11,7 @@ El funcionamiento del sistema se divide en tres partes principales, donde encont
 
 ### 1- Registro del mapa
 
+Empezaremos con el registro del mapa 
 
 ### 2- Algoritmo BSA 
 
