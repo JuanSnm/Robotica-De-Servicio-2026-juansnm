@@ -38,7 +38,37 @@ De esta forma, podemos saber dónde se encuentra el robot sobre la imagen y, pos
 Además, la transformación también se podrá realizar en sentido contrario, que será necesario posteriormente para convertir los centros de las celdas de la cuadrícula en posiciones reales a las que el robot pueda desplazarse.
 
 
-### 2- Algoritmo BSA 
+### 2- Algoritmo BSA
+
+#### Creacíón cuadricula
+
+Con el mapa registrado podemos transformarlo en un cuadrícula de celdas: 
+
+
+
+#### Planificación mediante el algoritmo
+
+Con el mapa ya registrado y la cuadricula creada, realizamos la planificación de la ruta antes de que el robot comience a moverse. De esta forma, usaremos el Backtracking Spiral Algorithm (BSA).
+
+Para el algoritmo, una celda puede considerarse un obstáculo por dos motivos:
+- Es un obstáculo real, como una pared.
+- Es una celda que ya ha sido visitada, que pasa a actuar como un obstáculo virtual para evitar repetir zonas.
+
+De esta forma, el algoritmo va construyendo una ruta que permite cubrir progresivamente el espacio disponible
+
+
+
+#### Reglas de movimiento 
+
+Para decidir qué hacer en cada celda, nuestro BSA utiliza cuatro reglas principales:
+
+1. `RS1 – Punto crítico`: Si las cuatro direcciones están bloqueadas, significa que el robot no puede continuar desde dicha posición, entonces, la celda se marca como punto crítico y se termina la espiral.
+
+2. `RS2 – Lado de referencia`: Si la celda situada a la izquierda del robot está libre, el robot gira hacia la izquierda y avanza hacia ella.
+
+3. `RS3 – Obstáculo frontal`: Si la celda que tenemos delante está bloqueada, el robot cambia de dirección para poder continuar recorriendo el entorno.
+
+3. `RS4 – Avance`: Si ninguna de las situaciones anteriores ocurre, el robot continúa avanzando en la misma dirección. 
 
 #### Vídeo 
 
