@@ -68,7 +68,8 @@ Para decidir qué hacer en cada celda, nuestro BSA utiliza cuatro reglas princip
 
 3. `RS3 – Obstáculo frontal`: Si la celda que tenemos delante está bloqueada, el robot cambia de dirección para poder continuar recorriendo el entorno.
 
-3. `RS4 – Avance`: Si ninguna de las situaciones anteriores ocurre, el robot continúa avanzando en la misma dirección. 
+3. `RS4 – Avance`: Si ninguna de las situaciones anteriores ocurre, el robot continúa avanzando en la misma dirección.
+
 
 #### Vídeo 
 
@@ -78,5 +79,46 @@ Para decidir qué hacer en cada celda, nuestro BSA utiliza cuatro reglas princip
 ### 3 - Movimiento 
 
 
+## Métodos y Funciones 
+
+`1. Registro del mapa`
+- mundo_a_pixel(x, y) → convierte coordenadas del mundo a píxeles.
+- pixel_a_mundo(u, v) → convierte píxeles a coordenadas del mundo.
+
+
+`2. Localización y HAL`
+- **pose() → obtiene la posición del robot y compensa el retraso.**
+- mandar(v, w) → manda velocidad lineal y angular al robot.
+- esperar(tiempo) → mantiene el robot parado durante un tiempo.
+
+
+`3. Movimiento`
+- ang(a) → normaliza un ángulo entre -π y π.
+- girar(yaw) → gira el robot hasta alcanzar una orientación.
+- **recta(a, b, celdas) → mueve el robot entre dos puntos, corrigiendo la trayectoria y marcando las celdas recorridas.**
+
+
+`4. Creación de la cuadrícula`
+- **cuadricula(ox, oy) → crea una cuadrícula y determina qué celdas son transitables.**
+- centro(c) → obtiene las coordenadas del centro de una celda.
+- vecina(c, d) → obtiene la celda vecina en una dirección determinada (Usada constantemente por BFS y BSA)
+
+
+`5. Búsqueda de caminos`
+- **bfs(origen, destino, pisables) → encuentra un camino entre dos celdas o todas las celdas alcanzables.**
+
+
+`6. Visualización`
+- pintar(c, color) → cambia el color de una celda.
+- mostrar(x, y) → muestra el mapa y la posición del robot.
+- limpiar(c, x, y) → marca una celda como recorrida.
+
+
+`7. Planificación BSA`
+- bsa(inicio, rumbo) → genera todo el recorrido utilizando el algoritmo BSA.
+Dentro de bsa() tenemos además funciones auxiliares:
+- obstaculo(c, d) → comprueba si hay un obstáculo en una dirección.
+- cubrir(c) → marca una celda como visitada y la añade al plan.
+- **avanzar(c, h) → avanza a una celda y guarda posibles puntos de retorno.**
 
 ## Video
