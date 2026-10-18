@@ -72,6 +72,8 @@ Estos parámetros permiten configurar la trayectoria, la detección de personas 
 
 ## Funcionamiento
 
+En este apartado explicamos cómo funciona el programa durante la misión, desde el desplazamiento inicial hasta la finalización de la búsqueda.
+
 <br>
 
 ### Movimiento - Búsqueda 
