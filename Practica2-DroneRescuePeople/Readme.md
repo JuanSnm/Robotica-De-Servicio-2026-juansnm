@@ -6,13 +6,65 @@ El objetivo de esta práctica es desarrollar un programa de control para un dron
 
 En nuestro caso el programa sigue una estrategia de búsqueda en espiral cuadrada que permite recorrer progresivamente la zona de interés. Durante el vuelo, el dron análiza las imágenes de la cámara y estima las coordenadas de las personas detectadas.
 
+<br>
+
 ## Configuración Inicial 
+
+Antes de comenzar la misión, definimos las coordenadas de referencia de la zona de búsqueda, los parámetros de vuelo y la configuración de la cámara y del detector de caras. Estos valores permiten establecer el área que recorrerá el dron, adaptar el procesamiento de las imágenes y controlar los recursos disponibles durante la búsqueda.
+
+<br>
 
 ### Coordenadas de referencia
 
+El enunciado nos proporciona las coordenadas GPS del barco y una ubicación aproximada de los supervivientes. Como el simulador trabaja con posiciones en metros, convertimos esas coordenadas a UTM y cálculamos la posición relativa respecto al barco.
+
+- Barco de seguridad: origen local `(0, 0)`.
+
+- Centro de búsqueda: aproximadamente `(40.3, -30.3)` metros respecto al barco.
+
+En esta implementación usamos el eje X para el desplazamiento hacia el este y el eje Y para el desplazamiento hacia el norte, por lo que los valores negativos de Y representan posiciones hacia el sur.
+
 ### Configuración de la cámara y del detector 
 
+Para detectar las caras usamos OpenCV con el clasificador Haar Cascade proporcionado por el ejercicio.
+
+- Imagen: `320 × 240 píxeles`.
+
+- Campo de visión horizontal: `59°`.
+
+- Tamaño de las caras aceptadas: entre `20 - 55` píxeles de ancho.
+
+- Altura de vuelo: `4 metros`.
+
+La posición de cada persona la estimamos usando su posición en la imagen, la altura del dron y los parámetros de la cámara. Vamos a ver ahora paso a paso cómo lo calculamos:
+
+1. Calculamos la distancia focal a partir del campo de visión horizontal: `f = (320 / 2) / tan(59° / 2) `
+
+2. Estimamos los desplazamientos respecto al dron mediante la geometría de la cámara: `Δx = ((120 - py) × z) / f` y `Δy = ((160 - px) × z) / f`
+
+3. Calculamos la posición estimada de la persona sumando los desplazamientos a la posición actual del dron: `X_persona = X_dron + Δx` y `Y_persona = Y_dron + Δy`
+
+Donde `px` y `py` son las coordenadas del centro de la cara detectada en la imagen, `z` es la altura del dron, `f` es la distancia focal calculada y `320 × 240` píxeles son las dimensiones de la imagen. Finalmente, de esta forma, obtnemos una aproximación de la posición de la persona en metros.
+
 ### Parámetros de la misión
+
+Los principales parámetros utilizados son:
+
+- Altura de vuelo: 4 m.
+
+- Número de tramos de búsqueda: 28, que generan 29 puntos en la trayectoria.
+
+- Separación inicial entre tramos: 2,5 m.
+
+- Batería máxima simulada: 400 m de recorrido.
+
+- Margen de seguridad de batería: 15 m.
+
+- Distancia para considerar una detección repetida: 2 m.
+
+- Tamaño de las caras aceptadas: entre 20 y 55 píxeles de ancho.
+
+Estos parámetros permiten configurar la trayectoria, la detección de personas y la gestión de la batería.
 
 
 <br>
@@ -20,11 +72,31 @@ En nuestro caso el programa sigue una estrategia de búsqueda en espiral cuadrad
 
 ## Funcionamiento
 
+<br>
+
 ### Movimiento - Búsqueda 
+
+El dron utiliza una trayectoria en espiral cuadrada para explorar la zona alrededor del centro estimado de los supervivientes. La trayectoria se genera automáticamente y se recorre punto por punto.
+
+Para desplazarse, el programa envía referencias de posición mediante la API HAL. El dron mantiene una altura objetivo de 4 m y se considera que ha alcanzado un punto cuando está a menos de 0,5 m de él.
+
+Durante los desplazamientos de búsqueda, se obtienen imágenes de la cámara ventral para localizar posibles supervivientes.
 
 ### Detección de supervivientes 
 
+Las imágenes se procesan mediante OpenCV y el clasificador Haar Cascade, y para mejorar las posibilidades de detección, se analizan ocho orientaciones diferentes, con rotaciones de 45°.
+
+Cuando se detecta una cara, el programa estima la posición de la persona utilizando su ubicación en la imagen, la altura del dron y los parámetros de la cámara.
+
+Finalmente, las coordenadas obtenidas se comparan con las posiciones almacenadas y si una detección se encuentra a menos de 2 m de una persona registrada, se considera repetida, pero en caso contrario, se guarda como una nueva persona.
+
 ### Gestión de la batería y recarga 
+
+La batería se simula en función de la distancia recorrida por el dron. Antes de dirigirse al siguiente punto, el programa comprueba si dispone de batería suficiente para llegar y regresar al barco, incluyendo un margen de seguridad.
+
+Si no es suficiente, el dron guarda su posición actual y regresa al barco. Allí aterriza y espera tres segundos para simular la recarga. Después, restablece la batería, despega y vuelve a la posición guardada para continuar la búsqueda.
+
+Esta gestión permite interrumpir temporalmente la misión y reanudarla tras la recarga.
 
 <br>
 <br>
