@@ -6,6 +6,9 @@ El objetivo de esta práctica es desarrollar un algoritmo de aparcamiento autom�
 
 Para esta solución usaremos el LiDAR 3D para detectar obstáculos y la odometría para estimar la posición y orientación del vehículo.
 
+<br>
+<br>
+
 ## Parámetros 
 
 Los valores utilizados en el algoritmo proceden de tres fuentes, en primer lugar, la geometría del vehículo, en segundo, la configuración del sensor en el modelo del simulador, y para finalizar, los parámetros de funcionamiento ajustados para la solución.
@@ -50,29 +53,46 @@ Los parámetros de geometría proceden del modelo del vehículo y de la configur
 
 Por otro lado, las velocidades y los márgenes de seguridad han sido ajustados y comprobados experimentalmente en la simulación.
 
+<br>
+<br>
+
 ## Funcionamiento 
 
-El algoritmo combina los datos del LiDAR con la odometría para detectar un hueco adecuado y ejecutar el aparcamiento de forma autónoma. El funcionamiento se divide en los siguientes pasos:
+El algoritmo combina la información del LiDAR con la odometría para detectar un hueco adecuado y realizar las maniobras necesarias para aparcar de forma autónoma. El LiDAR permite conocer la posición de los obstáculos, mientras que la odometría permite saber cómo se desplaza y gira el vehículo durante el proceso. 
 
-`1. Inicialización`: esperamos a que el simulador nos proporcione una pose válida, luego, se guarda la posición inicial del vehículo y se calculan las referencias de la fila de aparcamiento a partir de los datos del LiDAR.
-
-`2. Percepción del entorno`: se procesan los puntos del LiDAR, se transforman al sistema de referencia del vehículo y se descartan los puntos que corresponden a la propia geometría del coche.
-
-`3. Estimación del movimiento`: se utiliza la odometría para calcular el avance, el desplazamiento lateral y la orientación del vehículo respecto a su posición inicial.
-
-`4. Detección del hueco`: se analizan los obstáculos y las distancias libres para comprobar si existe un espacio suficiente y si el vehículo está correctamente alineado.
-
-`5. Ejecución de las maniobras`: una máquina de estados determina el movimiento que debe realizar el vehículo en cada momento y las condiciones para pasar a la siguiente fase.
-
-`6. Finalización`: cuando el coche está suficientemente centrado en el hueco, se detiene por completo.
+El funcionamiento se divide en los siguientes pasos:
 
 
+`1. Inicialización`: al comenzar, esperamos a que el simulador proporcione los datos de posición del vehículo. Después, se guarda su posición inicial y se utilizan las primeras lecturas del LiDAR para establecer las referencias de la fila de aparcamiento.
 
-El proceso se repite continuamente a una frecuencia objetivo de 20 Hz, actualizando la percepción y las decisiones de movimiento en cada iteración.
+`2. Percepción del entorno`: recogemos los puntos detectados por el sensor y los filtramos para conservar los que resultan útiles. A continuación, se transforman al sistema de referencia del vehículo y se eliminan los puntos que pertenecen al propio coche. Así, el algoritmo puede identificar los obstáculos y calcular las distancias respecto al vehículo.
 
-### Detección del hueco de aparcamiento
+`3. Estimación del movimiento`: mediante la odometría, calculamos cuánto ha avanzado el coche, cuánto se ha desplazado lateralmente y cuánto ha girado respecto a su posición inicial. Esta información permite conocer su posición durante la búsqueda del hueco y las distintas maniobras.
+
+`4. Detección del hueco`: mientras el vehículo avanza, analizamos los obstáculos y las distancias libres para comprobar si existe un espacio suficientemente grande para aparcar. También comprobamos que el coche esté correctamente alineado con la fila antes de comenzar la maniobra.
+
+`5. Ejecución de las maniobras`:  cuando se encuentra un hueco válido, entra en funcionamiento una máquina de estados que controla las distintas fases del aparcamiento. Según la posición del vehículo y el espacio disponible, el algoritmo decide cuándo debe retroceder, avanzar, girar o corregir su posición.
+
+`6. Finalización`: una vez que el vehículo ha entrado en el hueco, comprobamos la distancia disponible delante y detrás para ajustar su posición. Cuando se considera que está suficientemente centrado, se detiene completamente.
+
+Todo este proceso se ejecuta de forma continua mediante un bucle de control con una frecuencia objetivo de 20 Hz. En cada ciclo se actualizan los datos del LiDAR, se calcula el movimiento del vehículo y se decide la siguiente acción, permitiendo adaptar las maniobras a las condiciones detectadas durante el aparcamiento.
+
+<br>
 
 ### Maquina de Estados 
+
+El aparcamiento se organiza mediante seis estados. Cada uno representa una fase de la maniobra y define las condiciones necesarias para cambiar al siguiente.
+
+| Estado | Funcionamiento y movimiento | Condiciones de transición |
+|---|---|---|
+| `BUSCAR_HUECO` | El vehículo avanza a velocidad `V = 1.0` y corrige su orientación para mantenerse alineado con la fila de aparcamiento. Analiza los puntos del LiDAR para localizar un espacio libre con longitud suficiente. | Pasa a `ATRAS_DERECHA` cuando el vehículo está alineado con la fila (`abs(linea - lateral) < 0.2`), detecta un coche que delimita el hueco y comprueba que el espacio disponible tiene la longitud necesaria. |
+| `ATRAS_DERECHA` | El vehículo retrocede a velocidad `V_LENTA = 0.5` mientras gira a la derecha con velocidad angular `GIRO = 1.0`. Esta maniobra permite introducir la parte trasera del coche en el hueco. | Pasa a `ATRAS_IZQUIERDA` cuando alcanza la posición lateral prevista (`lateral < mitad`) o cuando la distancia libre detrás es inferior al margen de seguridad (`detras < MARGEN`). |
+| `ATRAS_IZQUIERDA` | El vehículo continúa retrocediendo, pero gira a la izquierda para modificar su orientación y avanzar en la entrada al hueco. | Pasa a `CENTRAR` cuando el ángulo relativo es inferior a un grado (`angulo < math.radians(1)`). Si no se cumple esta condición, pasa a `ADELANTE_DERECHA` cuando la distancia libre detrás es inferior al margen (`detras < MARGEN`) o el vehículo sobrepasa la referencia lateral prevista (`lateral < fondo - MARGEN / 2`). |
+| `ADELANTE_DERECHA` | El vehículo avanza a velocidad reducida (`V_LENTA = 0.5`) mientras gira a la derecha. Se utiliza para corregir la posición y la orientación cuando no puede continuar retrocediendo adecuadamente. | Pasa a `CENTRAR` cuando el ángulo relativo es inferior a un grado (`angulo < math.radians(1)`). Si no se cumple esta condición y la distancia libre delante es inferior al margen de seguridad (`delante < MARGEN`), vuelve a `ATRAS_IZQUIERDA`. |
+| `CENTRAR` | El vehículo compara las distancias libres delante (`delante`) y detrás (`detras`). Si necesita corregir su posición, realiza pequeños desplazamientos hacia delante o hacia atrás a una velocidad lineal de `0.3`, utilizando el ángulo para corregir su orientación. | Pasa a `APARCADO` cuando la diferencia entre las distancias libres delante y detrás es inferior a `0.5 m` (`abs(delante - detras) < 0.5`). Si no se cumple, avanza cuando hay más espacio libre delante y retrocede en caso contrario. |
+| `APARCADO` | El vehículo se encuentra en la fase final y deja de moverse. | No tiene transiciones de salida. El programa establece las velocidades lineal y angular a cero mediante `mover(0, 0)`. |
+
+Los cambios de estado se comprueban continuamente durante la ejecución del programa. De esta forma, el vehículo adapta sus maniobras a su posición, orientación y distancia a los obstáculos.
 
 
 ## Video 
