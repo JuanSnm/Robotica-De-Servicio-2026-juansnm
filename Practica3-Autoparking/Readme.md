@@ -94,6 +94,42 @@ El aparcamiento se organiza mediante seis estados. Cada uno representa una fase 
 
 Los cambios de estado se comprueban continuamente durante la ejecución del programa. De esta forma, el vehículo adapta sus maniobras a su posición, orientación y distancia a los obstáculos.
 
+<br>
+<br>
+
+## Métodos y Funciones 
+
+
+### Procesamiento del LiDAR
+
+- `leer_puntos()` → Filtra los datos del LiDAR y transforma los puntos al sistema de referencia del vehículo.
+
+
+### Odometría y transformaciones
+
+- `eje_trasero()` → Calcula la posición del eje trasero a partir de la pose del vehículo proporcionada por el simulador. Este punto se utiliza como referencia para analizar el movimiento.
+
+- `leer_pose()` → Calcula el avance longitudinal, el desplazamiento lateral y el cambio de orientación respecto a la pose inicial. Estas magnitudes permiten evaluar la evolución de las maniobras.
+
+- `a_la_calle(x, y, pose)` → Transforma un punto al sistema de referencia de la calle, permitiendo analizar la posición de los obstáculos durante la búsqueda del hueco.
+
+### Cálculo de distancias
+
+- `hay_algo(valores, desde, hasta)` → Comprueba si existen valores dentro de un intervalo determinado.
+
+- `libre_delante(puntos)` → Calcula la distancia al obstáculo más cercano situado delante del vehículo.
+
+- `libre_detras(puntos)` → Calcula la distancia al obstáculo más cercano situado detrás.
+
+- `libre_derecha(puntos)` → Calcula la distancia libre en el lateral derecho.
+
+### Control del movimiento
+
+- `mover(v, w)` → Establece las velocidades lineal y angular del vehículo mediante HAL.setV() y HAL.setW().
+
+- `maniobrar(v, w)` → Ejecuta las maniobras de aparcamiento y aplica un pequeño desplazamiento inicial durante un tiempo limitado para facilitar el comienzo del movimiento.
+
+- `cambiar(nuevo)` → Actualiza el estado actual, registra el instante del cambio y muestra por pantalla la fase en la que se encuentra el algoritmo.
 
 ## Video 
 
