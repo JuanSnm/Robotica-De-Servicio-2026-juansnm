@@ -136,3 +136,29 @@ Los cambios de estado se comprueban continuamente durante la ejecución del prog
 https://github.com/user-attachments/assets/68e7c766-124a-46fd-9430-fbeb1348cc76
 
 <img width="838" height="220" alt="Captura desde 2026-10-24 11-26-03" src="https://github.com/user-attachments/assets/88ac4b29-ea24-4e15-adf0-bac010ca56b0" />
+
+
+## Videos y mejoras (de último minuto)
+
+### Caso1 - Un solo coche detrás 
+
+https://github.com/user-attachments/assets/30c76ea8-e317-4d48-9c7a-422df4348102
+
+### Caso2 - Un solo coche delante 
+
+
+
+
+https://github.com/user-attachments/assets/df6da3b4-15e5-49f6-a9ac-226ea31de328
+
+
+Ha sido necesario cambiar en cierta medida el código: 
+
+He eliminado la función libre_derecha(), de forma que la fila de coches aparcados ya no se mide una sola vez al arrancar. Ahora, en el estado BUSCAR_HUECO, los puntos del LiDAR se pasan al sistema de la calle y en cada vuelta la fila se actualiza con el punto más cercano que se ha visto a la derecha. A partir de ella se recalculan la línea de búsqueda (linea) y la posición final (fondo).
+
+También cambia cuándo empieza a aparcar. Si hay un coche delante del hueco, la maniobra empieza como antes, es decir, al alinear los parachoques traseros, siempre que detrás quepa el coche. Si no hay ningún coche delante, empieza cuando detrás caben dos largos de coche; para eso he añadido la constante LARGO_COCHE. Por último, en CENTRAR el coche se da por aparcado si por uno de los lados no hay coche, porque no tiene con qué centrarse.
+
+
+
+
+
