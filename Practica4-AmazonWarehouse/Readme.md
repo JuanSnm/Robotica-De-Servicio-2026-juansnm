@@ -102,11 +102,115 @@ Las seis estanterías se distribuyen entre las dos zonas señalizadas del almac�
 
 https://urjc-my.sharepoint.com/:v:/r/personal/j_sanmiguel_2023_alumnos_urjc_es/_layouts/15/stream.aspx?id=%2Fpersonal%2Fj_sanmiguel_2023_alumnos_urjc_es%2FDocuments%2FROBOTICA%2FAmazonWarehouse_CASO1.mp4&nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&share=cQoB4KC4fE_ES7sQEZ0DzqSZEgUCmulyflxd-Xwi7FkzNU4_Bw
 
+<br>
+<br>
+
+## CASO_2: Robot holonómico con geometría rectangular
+
+### Planteamiento
+
+En este segundo caso mejoramos la representación del robot. En lugar de considerarlo un punto, tenemos en cuenta su geometría rectangular y su orientación durante la planificación, lo que nos permite comprobar si el robot puede ocupar una determinada posición sin que ninguna parte de su estructura colisione con los obstáculos. Además, cuando transporta una estantería, modificamos la geometría utilizada para representar el conjunto, de manera que también se tenga en cuenta el espacio que ocupa la carga.
+
+A diferencia del caso anterior, ya no necesitamos engordar los obstáculos, puesto que comprobamos directamente si la geometría del robot cabe en las zonas libres del mapa.
+
+<br>
+
+### Representación del robot
+
+Para representar la geometría del robot utilizamos la función `puntos_rectangulo()`, que genera una serie de puntos distribuidos por la superficie de un rectángulo.
+
+La separación entre estos puntos es aproximadamente de 0,07 metros. De esta manera, podemos comprobar diferentes partes del robot sin tener que analizar cada punto del mapa. Definimos dos geometrías diferentes:
+
+- Robot vacío: se representa mediante un cuadrado de 0,8 × 0,8 metros.
+
+- Robot cargado: se representa mediante un rectángulo de 2,1 × 0,9 metros, que incluye el espacio ocupado por la estantería transportada.
+
+Los puntos generados se almacenan en `PUNTOS_ROBOT` y `PUNTOS_CARGADO`, respectivamente.
+
+<br>
+
+### Comprobación de colisiones
+
+La función `robot_libre()` comprueba si todos los puntos que representan al robot se encuentran en zonas libres del mapa. Para ello, transforma cada punto de la geometría local del robot a coordenadas globales, teniendo en cuenta su posición (X, Y) y su orientación (yaw).
+
+A continuación, utiliza la función `hay_obstaculo()` para comprobar si cada punto ocupa una zona libre o una zona con obstáculos, por lo que si alguno de los puntos del robot coincide con un obstáculo o queda fuera de los límites del mapa y la posición se considera inválida. De esta forma, podemos detectar posibles colisiones teniendo en cuenta tanto la posición como la orientación del robot.
+
+<br>
+
+### Planificación con OMPL
+
+Para realizar la planificación utilizamos nuevamente el algoritmo RRT*, pero en este caso cambiamos el espacio de estados por `SE2StateSpace()`. Este espacio permite representar cada estado mediante tres componentes:
+
+- X: posición horizontal del robot.
+
+- Y: posición vertical del robot.
+
+- Yaw: orientación del robot.
+
+La función `estado_valido()` obtiene estos tres valores y utiliza `robot_libre()`  para comprobar si la geometría completa del robot puede ocupar esa posición y orientación.
+
+El resto de la configuración es similar al caso anterior donde utilizamos `PathLengthOptimizationObjective` para minimizar la longitud del recorrido y establecemos un tiempo máximo de planificación de 3 segundos. Como resultado, OMPL genera una trayectoria formada por diferentes poses (X, Y, yaw), en lugar de una simple secuencia de puntos.
+
+<br>
+
+### Comprobación del camino
+
+Además de comprobar que las posiciones de la trayectoria sean válidas, realizamos una comprobación adicional del movimiento entre ellas, que es importante porque el controlador utilizado para ejecutar el camino realiza primero un giro sobre sí mismo y después un desplazamiento en línea recta. Para comprobar que estas maniobras son posibles, implementamos tres funciones:
+
+- `giro_libre()`: comprueba si el robot puede girar sobre sí mismo sin colisionar, evaluando diferentes orientaciones con incrementos de 0,05 radianes.
+
+- `recta_libre()`: comprueba si el robot puede desplazarse entre dos posiciones sin atravesar obstáculos, realizando comprobaciones cada 0,05 metros aproximadamente.
+
+- `camino_libre()`: combina las dos comprobaciones anteriores para verificar todos los tramos de la trayectoria.
+
+Si el camino generado por OMPL no supera esta comprobación, se vuelve a ejecutar la planificación hasta encontrar una trayectoria válida.
+
+<br>
+
+### Seguimiento del camino
+
+Una vez validada la trayectoria, utilizamos un sistema de seguimiento similar al del caso anterior. La función `seguir_camino()` recorre las poses calculadas por OMPL. Para alcanzar cada posición, el robot calcula primero el rumbo necesario, gira hasta alcanzarlo y después avanza hacia el siguiente punto.
+
+Las funciones `girar_hasta()` y `avanzar_hasta()` se encargan de controlar las velocidades lineal y angular, utilizando la posición y orientación actuales obtenidas mediante `HAL.getPose3d()`. De esta forma, el robot ejecuta una secuencia de giros y desplazamientos rectos, pero ahora teniendo en cuenta su geometría durante la planificación y la comprobación del recorrido.
+
+<br>
+
+### Recogida y entrega de estanterías
+
+El proceso de recogida y entrega mantiene la misma estructura que en el caso anterior:
+
+1. `Aproximación`: se planifica el desplazamiento hasta la estantería utilizando la geometría del robot vacío.
+
+2. `Recogida`: se utiliza HAL.lift() para levantar la estantería.
+
+3. `Transporte`: se actualiza la geometría del robot para representar el conjunto cargado y se calcula un nuevo camino hasta la zona de destino.
+
+4. `Entrega`: el robot se aproxima al hueco y utiliza HAL.putdown() para depositar la estantería.
+
+5. `Actualización del mapa`: se registra la nueva posición de la estantería y se prepara el entorno para la siguiente operación.
+
+El programa repite este procedimiento para las seis estanterías y muestra finalmente el mapa actualizado del almacén.
+
+<br>
 
 
-## CASO_2: 
 
 
 
+<br>
+
+### Vídeo del funcionamiento 
+
+https://urjc-my.sharepoint.com/:v:/r/personal/j_sanmiguel_2023_alumnos_urjc_es/_layouts/15/stream.aspx?id=%2Fpersonal%2Fj_sanmiguel_2023_alumnos_urjc_es%2FDocuments%2FROBOTICA%2FAmazonWarehouse_CASO2.mp4&nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&share=cQrYrobnEnr3T5Kb6aeunIDiEgUCyzhZnQxM3LJcIGBEefcj6A
+
+<br>
+<br>
 
 ## CASO_3: Robot Ackermann 
+
+<br>
+
+### Vídeo del funcionamiento 
+
+https://urjc-my.sharepoint.com/:v:/r/personal/j_sanmiguel_2023_alumnos_urjc_es/_layouts/15/stream.aspx?id=%2Fpersonal%2Fj_sanmiguel_2023_alumnos_urjc_es%2FDocuments%2FROBOTICA%2FAmazonWarehouse_CASO3.mp4&nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&share=cQptf-dgHQxcToE1gvfUZ7WqEgUCAnK-X_QIhg3sqwOyGBG8ww
+
