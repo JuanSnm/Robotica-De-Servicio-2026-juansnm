@@ -194,11 +194,6 @@ El programa repite este procedimiento para las seis estanterías y muestra final
 <br>
 
 
-
-
-
-<br>
-
 ### Vídeo del funcionamiento 
 
 https://urjc-my.sharepoint.com/:v:/r/personal/j_sanmiguel_2023_alumnos_urjc_es/_layouts/15/stream.aspx?id=%2Fpersonal%2Fj_sanmiguel_2023_alumnos_urjc_es%2FDocuments%2FROBOTICA%2FAmazonWarehouse_CASO2.mp4&nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&share=cQrYrobnEnr3T5Kb6aeunIDiEgUCyzhZnQxM3LJcIGBEefcj6A
@@ -208,7 +203,107 @@ https://urjc-my.sharepoint.com/:v:/r/personal/j_sanmiguel_2023_alumnos_urjc_es/_
 
 ## CASO_3: Robot Ackermann 
 
+### Planteamiento
+
+En este último caso trabajamos con un robot de tipo Ackermann, cuyo comportamiento es diferente al de los robots holonómicos utilizados anteriormente.
+
+Este vehículo no puede girar sobre sí mismo, ya que necesita avanzar o retroceder describiendo curvas para cambiar de dirección. Por tanto, debemos tener en cuenta sus restricciones de movimiento durante la planificación. Para ello, representamos el coche mediante una geometría rectangular y utilizamos el espacio de estados ReedsSheppStateSpace de OMPL, que permite generar trayectorias compatibles con movimientos hacia delante y hacia atrás. Además, modificamos el sistema de seguimiento para que el vehículo pueda recorrer las curvas de forma progresiva.
+
+
 <br>
+
+###  Representación del robot
+
+Al igual que en el Caso 2, utilizamos una serie de puntos distribuidos por la superficie de un rectángulo para representar la geometría del vehículo.
+
+La función `puntos_rectangulo()` genera estos puntos con una separación aproximada de 0,07 metros. Así mismo definimos dos geometrías:
+
+- Coche vacío: rectángulo de 1,3 × 0,75 metros.
+
+- Coche cargado: rectángulo de 2,1 × 0,9 metros, que representa el conjunto formado por el vehículo y la estantería.
+
+También tenemos en cuenta que la posición proporcionada por el simulador no coincide exactamente con el centro geométrico que utilizamos para representar el coche. Para corregirlo, definimos `MEDIO_COCHE = 0.25` y utilizamos la función `pose_coche()`, que desplaza la posición obtenida mediante HAL.getPose3d() para trabajar con el centro de referencia del vehículo, de esta forma, podemos comprobar correctamente la ocupación del espacio teniendo en cuenta la orientación del coche.
+
+<br>
+
+
+### Comprobación de colisiones
+
+La función `estado_valido()` comprueba si la geometría completa del vehículo puede ocupar una determinada posición y orientación. Para ello, transforma todos los puntos del rectángulo a coordenadas globales utilizando la posición (X, Y) y el ángulo yaw. Posteriormente, comprueba cada punto mediante `hay_obstaculo()` de forma que si alguno coincide con un obstáculo o queda fuera de los límites del mapa, el estado se considera inválido.
+
+Este procedimiento se aplica tanto cuando el coche circula vacío como cuando transporta una estantería, utilizando en cada situación la geometría correspondiente.
+
+<br>
+
+
+### Planificación con Reeds-Shepp
+
+La principal diferencia respecto a los casos anteriores aparece en el espacio de estados utilizado por OMPL.
+
+En lugar de utilizar `RealVectorStateSpace` o `SE2StateSpace`, empleamos `ReedsSheppStateSpace(RADIO_GIRO)`. Este espacio permite conectar dos poses mediante trayectorias formadas por arcos y segmentos rectos, teniendo en cuenta un radio mínimo de giro. Además, admite desplazamientos tanto hacia delante como hacia atrás.
+
+Utilizamos un radio de giro de 1,2 metros y mantenemos el algoritmo RRT* para buscar una trayectoria entre la posición inicial y la de destino. También utilizamos `PathLengthOptimizationObjective` para minimizar la longitud del recorrido y establecemos un tiempo máximo de planificación de 3 segundos.
+
+Una vez encontrada una solución exacta, interpolamos el camino en 200 estados para obtener una secuencia más detallada de poses que facilite su seguimiento.
+
+<br>
+
+
+### Seguimiento de la trayectoria
+
+A diferencia de los casos anteriores, el coche no puede ejecutar cada tramo mediante un giro sobre sí mismo seguido de un desplazamiento recto. Por ello, implementamos un controlador basado en Pure Pursuit, que permite seguir una trayectoria curva calculando continuamente la dirección necesaria para alcanzar un punto situado por delante del vehículo.
+
+Primero, la función `partir_en_tramos()` divide la trayectoria en segmentos según el sentido de desplazamiento. De esta manera, identifica cuándo el coche debe avanzar y cuándo debe retroceder. Después, la función `seguir_tramo()` se encarga de seguir cada segmento:
+
+1. Selecciona un punto de la trayectoria situado a una distancia determinada del vehículo.
+
+2. Calcula el ángulo necesario para dirigirse hacia ese punto.
+
+3. Obtiene la curvatura necesaria para corregir la trayectoria.
+
+4. Calcula las velocidades lineal y angular que debe aplicar el vehículo.
+
+Para ello, utilizamos una distancia objetivo de 0,6 metros y limitamos la velocidad lineal máxima a 0,15 m/s. La velocidad y la curvatura se combinan para calcular los valores enviados a HAL.setV() y HAL.setW() y cuando el tramo requiere retroceder, se invierte el sentido de ambas velocidades. De esta forma, el vehículo puede seguir trayectorias curvas y realizar maniobras hacia delante y hacia atrás sin necesidad de detenerse para girar sobre sí mismo.
+
+<br>
+
+
+### Aproximación a las estanterías
+
+Para mejorar las maniobras de recogida y entrega, no realizamos toda la aproximación mediante el planificador global. En su lugar, calculamos puntos específicos de entrada y salida alrededor de cada estantería.
+
+Utilizamos una distancia de entrada de 3 metros y una pequeña distancia adicional de 1 metro, denominada `CARRERILLA`, para preparar el vehículo antes de realizar la aproximación final. Además la función `recta_hasta()` genera una trayectoria recta interpolada entre la posición actual y el punto objetivo, que posteriormente se ejecuta utilizando el mismo controlador de seguimiento.
+
+Así, el proceso de aproximación se divide en dos partes:
+
+- Planificación global: OMPL calcula una trayectoria hasta un punto situado a cierta distancia de la estantería.
+
+- Aproximación final: el vehículo realiza desplazamientos rectos para alinearse con la estantería y recogerla o depositarla.
+
+<br>
+
+
+### Recogida y entrega de estanterías
+
+El programa principal calcula para cada estantería los puntos necesarios para realizar la recogida y la entrega. Para cada una de las seis estanterías se realizan las siguientes operaciones:
+
+1. `Preparación de la recogida`: se calcula la posición de aproximación y el punto de entrada situado a 3 metros de la estantería.
+
+2. `Aproximación`: OMPL planifica el recorrido hasta el punto de entrada y el vehículo realiza los desplazamientos rectos necesarios para alcanzar la estantería.
+
+3. `Recogida`: el coche se detiene y utiliza HAL.lift() para levantar la estantería.
+
+4. `Transporte`: se actualiza la geometría del vehículo para representar el conjunto cargado y OMPL calcula una nueva trayectoria hasta el punto situado delante del hueco de destino.
+
+5. `Entrega`: el vehículo realiza la aproximación final y utiliza HAL.putdown() para depositar la estantería.
+
+6. `Actualización y salida`: se actualiza la posición de la estantería en el mapa y el coche retrocede hasta el punto de salida para continuar con la siguiente operación.
+
+Una vez trasladadas las seis estanterías, se muestra el mapa final del almacén.
+
+<br>
+
+
 
 ### Vídeo del funcionamiento 
 
