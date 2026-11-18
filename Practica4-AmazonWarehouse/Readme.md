@@ -309,3 +309,20 @@ Una vez trasladadas las seis estanterías, se muestra el mapa final del almacén
 
 https://urjc-my.sharepoint.com/:v:/r/personal/j_sanmiguel_2023_alumnos_urjc_es/_layouts/15/stream.aspx?id=%2Fpersonal%2Fj_sanmiguel_2023_alumnos_urjc_es%2FDocuments%2FROBOTICA%2FAmazonWarehouse_CASO3.mp4&nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&share=cQptf-dgHQxcToE1gvfUZ7WqEgUCAnK-X_QIhg3sqwOyGBG8ww
 
+
+
+## CONCLUSIONES
+
+A lo largo de esta práctica hemos desarrollado tres soluciones diferentes para abordar el problema de navegación y transporte de estanterías en un almacén, utilizando la biblioteca OMPL para la planificación de trayectorias. Cada caso introduce un nivel mayor de detalle en la representación del robot y en las restricciones que debe cumplir durante sus desplazamientos:
+
+- **Caso 1**: simplificamos el robot como un punto y utilizamos el engordamiento de obstáculos para tener en cuenta sus dimensiones. Es el enfoque más sencillo, aunque no considera directamente la geometría ni la orientación del robot.
+
+- **Caso 2**: incorporamos la geometría rectangular del robot y su orientación mediante un espacio de estados SE(2). Esto permite realizar comprobaciones de colisión más precisas, aunque los movimientos ejecutados siguen basándose en giros sobre sí mismo y desplazamientos rectos.
+
+- **Caso 3**: adaptamos la solución a un vehículo Ackermann, teniendo en cuenta sus restricciones de movimiento mediante Reeds-Shepp y utilizando un controlador basado en Pure Pursuit para seguir las trayectorias curvas y realizar desplazamientos hacia delante y hacia atrás.
+
+La comparación de estos tres enfoques permite comprobar que la planificación de movimientos no depende únicamente de encontrar un camino libre de obstáculos. También es necesario tener en cuenta la geometría del robot, su orientación y, especialmente, sus capacidades reales de movimiento.
+
+En definitiva, esta práctica nos ha permitido aplicar diferentes técnicas de planificación y control de movimiento en un entorno de robótica móvil, comprender las ventajas y limitaciones de cada enfoque y comprobar la importancia de adaptar los algoritmos a las características del vehículo. Finalmente, las soluciones desarrolladas permiten abordar el traslado de las seis estanterías del almacén mediante estrategias de navegación diferentes, desde una aproximación simplificada hasta una planificación que considera las restricciones cinemáticas de un vehículo Ackermann.
+
+
